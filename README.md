@@ -55,6 +55,8 @@ Copy-Item .env.example .env
 notepad .env
 ```
 
+**Existing V0.1 users:** The earlier Compose setup created PostgreSQL role `user` with a fixed development password. The new Compose configuration uses role `graphforge` and a password from `.env`. An existing PostgreSQL data volume will **not** automatically migrate credentials. Before restarting against an existing volume, migrate the database role/password or back up and deliberately recreate the development database. Do not run `docker compose down -v` unless you intend to delete stored datasets.
+
 Then run:
 
 ```powershell
