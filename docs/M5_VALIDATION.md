@@ -1,6 +1,6 @@
 # M5 — integration and validation
 
-The draft PR against `main` runs GitHub Actions for:
+The V0.1 integration PR #1 was merged into `main` after successful GitHub Actions and local acceptance. CI runs for pull requests targeting `main` and pushes to `main` and the release-preparation branch. It checks:
 
 1. Python 3.12 syntax compilation.
 2. PostgreSQL 16-backed API integration tests for CSV/JSON import, duplicate detection, invalid files, deterministic mappings, idempotence, source-record evidence, review audit, approved-only export, and local AI output validation (mocked Ollama).
@@ -10,7 +10,7 @@ No live Ollama model inference is exercised by CI. That requires a separate loca
 
 ## Local startup
 
-From the repository root, use:
+From the repository root, copy `.env.example` to `.env` and set a unique local database password, then use:
 
 ```powershell
 docker compose -f app/docker-compose.yml up --build -d
@@ -18,7 +18,7 @@ docker compose -f app/docker-compose.yml up --build -d
 
 Open `http://localhost:5173` for the UI or `http://localhost:8000/docs` for the API.
 
-The Compose file is for trusted local development only; default PostgreSQL credentials and unauthenticated review endpoints are not suitable for network-exposed production use.
+The Compose file is for trusted local development only; unauthenticated review endpoints are not suitable for network-exposed production use.
 
 ## Local end-to-end acceptance
 
@@ -30,4 +30,4 @@ The Compose file is for trusted local development only; default PostgreSQL crede
 6. Upload the identical file again and confirm HTTP 409 (no duplicate records).
 7. Optionally enable local Ollama and verify AI proposals remain pending until reviewed.
 
-M5 is not complete until CI is green and the local end-to-end workflow has been observed. Do not merge the draft PR before explicit human approval.
+M5 initial acceptance completed: 9 backend tests passed locally, the frontend build succeeded, CI passed, and the dataset-to-approved-graph UI flow was observed. Live Ollama inference remains untested. Public-release security hardening is tracked separately.

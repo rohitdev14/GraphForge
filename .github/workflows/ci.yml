@@ -3,7 +3,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [feature/m2-m4-integration]
+    branches: [main, feature/m2-m4-integration, chore/public-release-prep]
 permissions:
   contents: read
 jobs:

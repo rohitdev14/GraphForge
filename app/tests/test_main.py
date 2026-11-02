@@ -140,3 +140,18 @@ def test_ai_suggestions_pending_and_grounded(monkeypatch):
     assert proposals[0]["origin"] == "ollama"
     assert proposals[0]["status"] == "pending"
     assert client.get(f"/api/graph/{dataset_id}").json()["edges"] == []
+
+def test_reject_oversized_upload():
+    content = b"equipment_id,fault\n" + b"x" * (5 * 1024 * 1024)
+    response = upload_csv(content)
+    assert response.status_code == 413
+
+def test_reject_excessive_json_records():
+    content = json.dumps([{"equipment_id": "x"}] * 10001).encode()
+    response = client.post("/upload", files={"file": ("many.json", content, "application/json")})
+    assert response.status_code == 413
+
+def test_reject_excessive_csv_records():
+    content = b"equipment_id,fault\n" + b"PUMP-1,Leak\n" * 10001
+    response = upload_csv(content)
+    assert response.status_code == 400
