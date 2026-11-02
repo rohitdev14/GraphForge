@@ -1,16 +1,16 @@
-version: '3.8'
-
 services:
   backend:
     build: .
     ports:
       - "8000:8000"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     environment:
-      - DATABASE_URL=postgresql://user:password@db:5432/graphforge
-    volumes:
-      - ./app:/app
+      DATABASE_URL: postgresql://user:password@db:5432/graphforge
+      OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:8b}
+    restart: unless-stopped
 
   db:
     image: postgres:16
@@ -18,10 +18,26 @@ services:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
       POSTGRES_DB: graphforge
-    ports:
-      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d graphforge"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  frontend:
+    image: node:22-alpine
+    working_dir: /workspace
+    volumes:
+      - ../frontend:/workspace
+      - frontend_modules:/workspace/node_modules
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
 volumes:
   postgres_data:
+  frontend_modules:
