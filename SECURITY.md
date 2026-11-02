@@ -7,7 +7,7 @@ GraphForge V0.1 is an experimental local-first prototype, **not** a multi-user o
 - Do not expose port 8000/5173 through a reverse proxy, port forward, tunnel or public interface.
 - Do not import confidential or regulated datasets into a publicly accessible deployment.
 - Uploaded records and original files are stored in PostgreSQL; protect the local Docker volume and backups.
-- Configure a unique password in an ignored root `.env` file.
+- Configure a unique password in an ignored `app/.env` file.
 - Ollama output is untrusted; proposals require human approval.
 - Do not use this repository as a production service without authentication, rate limits, file-size limits, hardened secrets management, and a full security review.
 
