@@ -13,7 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from datetime import datetime
 
 # Database setup
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@db:5432/graphforge")
+DATABASE_URL = os.environ["DATABASE_URL"]
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -61,6 +61,10 @@ class ImportMetadata(Base):
     status = Column(String)
     message = Column(Text)
 
+# Local development limits; enforce before parsing or persisting untrusted uploads.
+MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+MAX_RECORDS = 10000
+
 # Helper functions
 def get_file_hash(file_content: bytes) -> str:
     return hashlib.sha256(file_content).hexdigest()
@@ -74,7 +78,11 @@ def validate_csv(file_content: bytes) -> list[dict]:
             raise ValueError("CSV must contain named columns")
         if len(headers) != len(set(headers)) or "__extra__" in headers:
             raise ValueError("CSV contains duplicate or reserved columns")
-        rows = list(reader)
+        rows = []
+        for row in reader:
+            rows.append(row)
+            if len(rows) > MAX_RECORDS:
+                raise ValueError("CSV exceeds maximum record count")
         if not rows or any("__extra__" in row or any(v is None for v in row.values()) for row in rows):
             raise ValueError("CSV must contain complete records")
         return rows
@@ -90,6 +98,8 @@ def validate_json(file_content: bytes) -> list[dict]:
         data = [data]
     if not isinstance(data, list) or not data or any(not isinstance(row, dict) for row in data):
         raise HTTPException(status_code=400, detail="JSON must contain one object or a nonempty array of objects")
+    if len(data) > MAX_RECORDS:
+        raise HTTPException(status_code=413, detail="JSON exceeds maximum record count")
     return data
 
 def parse_csv_content(content: bytes) -> list[dict]:
@@ -106,7 +116,9 @@ async def upload_file(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Invalid file type. Only CSV and JSON files are allowed.")
     
     # Read file content
-    content = await file.read()
+    content = await file.read(MAX_UPLOAD_BYTES + 1)
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="Upload exceeds 5 MiB limit")
     
     # Check for duplicates using SHA-256 hash
     file_hash = get_file_hash(content)
