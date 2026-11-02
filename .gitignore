@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+# Aider
+.aider.*
+# Node
+node_modules/
+frontend/dist/
+frontend/*.tsbuildinfo
+# Local configuration
+.env
+.env.*
+!.env.example
+# Editors
+.vscode/
+.idea/
