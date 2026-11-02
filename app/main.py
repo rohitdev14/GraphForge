@@ -174,5 +174,9 @@ async def upload_file(file: UploadFile = File(...)):
 async def health_check():
     return {"status": "healthy"}
 
+# Register graph models and routes before creating database tables
+import graph
+app.include_router(graph.router)
+
 # Create tables
 Base.metadata.create_all(bind=engine)
