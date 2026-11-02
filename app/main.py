@@ -4,11 +4,13 @@ import os
 import hashlib
 import csv
 import json
+import io
+import logging
 from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, LargeBinary, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
+from sqlalchemy.exc import IntegrityError
 from datetime import datetime
-import uuid
 
 # Database setup
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@db:5432/graphforge")
@@ -23,7 +25,7 @@ app = FastAPI(title="GraphForge Backend", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -54,7 +56,7 @@ class ImportMetadata(Base):
     __tablename__ = "import_metadata"
     
     id = Column(Integer, primary_key=True, index=True)
-    dataset_id = Column(Integer)
+    dataset_id = Column(Integer, ForeignKey("datasets.id"), nullable=False)
     import_time = Column(DateTime, default=datetime.utcnow)
     status = Column(String)
     message = Column(Text)
@@ -63,35 +65,38 @@ class ImportMetadata(Base):
 def get_file_hash(file_content: bytes) -> str:
     return hashlib.sha256(file_content).hexdigest()
 
-def validate_csv(file_content: bytes) -> list:
+def validate_csv(file_content: bytes) -> list[dict]:
     try:
-        decoded_content = file_content.decode('utf-8')
-        reader = csv.DictReader(decoded_content.splitlines())
+        text = file_content.decode("utf-8-sig")
+        reader = csv.DictReader(io.StringIO(text, newline=""), restkey="__extra__")
+        headers = reader.fieldnames
+        if not headers or any(not h or not h.strip() for h in headers):
+            raise ValueError("CSV must contain named columns")
+        if len(headers) != len(set(headers)) or "__extra__" in headers:
+            raise ValueError("CSV contains duplicate or reserved columns")
         rows = list(reader)
-        if not rows:
-            raise ValueError("CSV file is empty")
+        if not rows or any("__extra__" in row or any(v is None for v in row.values()) for row in rows):
+            raise ValueError("CSV must contain complete records")
         return rows
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Invalid CSV format: {str(e)}")
+    except (UnicodeError, csv.Error, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid CSV format: {exc}") from exc
 
-def validate_json(file_content: bytes) -> list:
+def validate_json(file_content: bytes) -> list[dict]:
     try:
-        data = json.loads(file_content.decode('utf-8'))
-        if not isinstance(data, (list, dict)):
-            raise ValueError("JSON must be an object or array")
-        if isinstance(data, dict):
-            return [data]
-        return data
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Invalid JSON format: {str(e)}")
-
-def parse_csv_content(content: bytes) -> list:
-    rows = validate_csv(content)
-    return rows
-
-def parse_json_content(content: bytes) -> list:
-    data = validate_json(content)
+        data = json.loads(file_content.decode("utf-8"))
+    except (UnicodeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail="Invalid JSON format") from exc
+    if isinstance(data, dict):
+        data = [data]
+    if not isinstance(data, list) or not data or any(not isinstance(row, dict) for row in data):
+        raise HTTPException(status_code=400, detail="JSON must contain one object or a nonempty array of objects")
     return data
+
+def parse_csv_content(content: bytes) -> list[dict]:
+    return validate_csv(content)
+
+def parse_json_content(content: bytes) -> list[dict]:
+    return validate_json(content)
 
 # API endpoints
 @app.post("/upload")
@@ -164,9 +169,13 @@ async def upload_file(file: UploadFile = File(...)):
     except HTTPException:
         db.rollback()
         raise
+    except IntegrityError as e:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Dataset already exists or violates a database constraint") from e
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        logging.exception("Dataset import failed")
+        raise HTTPException(status_code=500, detail="Dataset import failed") from e
     finally:
         db.close()
 
