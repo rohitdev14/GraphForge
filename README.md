@@ -51,11 +51,11 @@ Prerequisites: Docker Desktop with Docker Compose, plus a checkout of this repos
 From the **repository root**, create your local configuration before starting (edit the generated `.env` and replace the example password):
 
 ```powershell
-Copy-Item .env.example .env
-notepad .env
+Copy-Item .env.example app/.env
+notepad app/.env
 ```
 
-**Existing V0.1 users:** The earlier Compose setup created PostgreSQL role `user` with a fixed development password. The new Compose configuration uses role `graphforge` and a password from `.env`. An existing PostgreSQL data volume will **not** automatically migrate credentials. Before restarting against an existing volume, migrate the database role/password or back up and deliberately recreate the development database. Do not run `docker compose down -v` unless you intend to delete stored datasets.
+**Existing V0.1 users:** The earlier Compose setup created PostgreSQL role `user` with a fixed development password. The new Compose configuration uses role `graphforge` and a password from `app/.env`. An existing PostgreSQL data volume will **not** automatically migrate credentials. Before restarting against an existing volume, migrate the database role/password or back up and deliberately recreate the development database. Do not run `docker compose down -v` unless you intend to delete stored datasets.
 
 Then run:
 
