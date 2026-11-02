@@ -48,7 +48,14 @@ Optional local Ollama suggestions follow the same human-review gate. **Live Olla
 
 Prerequisites: Docker Desktop with Docker Compose, plus a checkout of this repository.
 
-From the **repository root**:
+From the **repository root**, create your local configuration before starting (edit the generated `.env` and replace the example password):
+
+```powershell
+Copy-Item .env.example .env
+notepad .env
+```
+
+Then run:
 
 ```powershell
 docker compose -f app/docker-compose.yml up --build -d
@@ -94,9 +101,13 @@ The optional Ollama connection defaults to `http://host.docker.internal:11434` w
 
 Known non-blocking issues: graph edge-label overlap in the UI, frontend bundle-size warning, and dependency deprecation warnings. The V0.1 acceptance did not establish production readiness or complete coverage of every requirement in `PROJECT.md`.
 
+## Open-source license
+
+Released under the [MIT License](LICENSE). Copyright (c) 2026 Rohit Khurana.
+
 ## Security and scope
 
-**Local development only.** The supplied Compose setup uses example database credentials and does not implement production-grade authentication/authorization for review endpoints. Do not expose these services to untrusted networks or upload sensitive operational data without additional controls. AI suggestions must never be automatically approved.
+**Local development only.** The supplied Compose setup requires a local password in an ignored `.env`, binds exposed ports to 127.0.0.1, and does not implement authentication/authorization for review endpoints. Uploads are limited to 5 MiB and 10,000 records. Do not expose these services to untrusted networks or upload sensitive operational data without additional controls. See [SECURITY.md](SECURITY.md). AI suggestions must never be automatically approved.
 
 ## Project records
 
